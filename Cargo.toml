@@ -1,0 +1,9 @@
+[package]
+name = "thrift-async"
+version = "0.1.0"
+authors = ["Flavien Raynaud <flavr@yelp.com>"]
+
+[dependencies]
+futures = "0.1"
+thrift = "0.0.4"
+tokio = "0.1"
