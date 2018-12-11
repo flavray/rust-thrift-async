@@ -2,6 +2,10 @@
 name = "thrift-async"
 version = "0.1.0"
 authors = ["Flavien Raynaud <flavr@yelp.com>"]
+description = "Almost asynchronous Thrift server implementation"
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/flavray/rust-thrift-async"
 edition = "2018"
 
 [dependencies]
