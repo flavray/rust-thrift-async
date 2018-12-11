@@ -13,7 +13,7 @@ use thrift::server::TProcessor;
 use tokio::net::TcpListener;
 use tokio::prelude::*;
 
-use transport::{ReadResult, TAReadFramedTransport, TAWriteFramedTransport};
+use crate::transport::{ReadResult, TAReadFramedTransport, TAWriteFramedTransport};
 
 pub const DEFAULT_MAX_FRAME_SIZE: u32 = 256 * 1024 * 1024;
 
