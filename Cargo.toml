@@ -1,6 +1,6 @@
 [package]
 name = "thrift-async"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["Flavien Raynaud <flavr@yelp.com>"]
 description = "Almost asynchronous Thrift server implementation"
 license = "MIT"
