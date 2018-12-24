@@ -30,6 +30,12 @@ impl<'a, R: AsyncRead> TAReadFramedTransport<'a, R> {
     pub fn frame_cursor(&self) -> Cursor<&Vec<u8>> {
         Cursor::new(&self.frame_buffer)
     }
+
+    pub fn core_resize(&mut self, core_size: usize) {
+        if self.frame_buffer.capacity() > core_size {
+            self.frame_buffer = Vec::new()
+        }
+    }
 }
 
 impl<'a, R: 'a + AsyncRead> Future for TAReadFramedTransport<'a, R> {
@@ -79,13 +85,17 @@ impl<'a, W: AsyncWrite> TAWriteFramedTransport<'a, W> {
             frame_buffer: Vec::with_capacity(4),
         }
     }
-}
 
-impl<'a, W: AsyncWrite> TAWriteFramedTransport<'a, W> {
     pub fn frame_cursor(&mut self) -> Cursor<&mut Vec<u8>> {
         let mut cursor = Cursor::new(&mut self.frame_buffer);
         cursor.set_position(4); // leave 4 bytes to write frame size
         cursor
+    }
+
+    pub fn core_resize(&mut self, core_size: usize) {
+        if self.frame_buffer.capacity() - 4 > core_size {
+            self.frame_buffer = Vec::with_capacity(4)
+        }
     }
 
     fn is_frame_empty(&self) -> bool {
