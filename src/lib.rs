@@ -33,7 +33,13 @@ struct TAsyncProcessor<R: AsyncRead, W: AsyncWrite, P: TProcessor> {
 }
 
 impl<R: AsyncRead, W: AsyncWrite, P: TProcessor> TAsyncProcessor<R, W, P> {
-    fn new(reader: R, writer: W, processor: Arc<P>, max_frame_size: usize, core_resize: CoreResize) -> Self {
+    fn new(
+        reader: R,
+        writer: W,
+        processor: Arc<P>,
+        max_frame_size: usize,
+        core_resize: CoreResize,
+    ) -> Self {
         TAsyncProcessor {
             reader,
             writer,
@@ -60,8 +66,12 @@ impl<R: AsyncRead, W: AsyncWrite, P: TProcessor> Future for TAsyncProcessor<R, W
             match try_ready!(read_transport.poll()) {
                 ReadResult::Ok => (),
                 ReadResult::EOF => break, // EOF reached - client disconnected
-                ReadResult::TooLarge(size) => { // Frame is too large (non-thrift framed input?) - disconnect client
-                    eprintln!("Frame size {} too large (maximum: {})", size, self.max_frame_size);
+                ReadResult::TooLarge(size) => {
+                    // Frame is too large (non-thrift framed input?) - disconnect client
+                    eprintln!(
+                        "Frame size {} too large (maximum: {})",
+                        size, self.max_frame_size
+                    );
                     break
                 },
             }
