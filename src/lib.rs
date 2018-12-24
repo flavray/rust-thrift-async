@@ -3,6 +3,7 @@ mod transport;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
+use failure::Error;
 use futures::try_ready;
 use thrift::protocol::{TBinaryInputProtocol, TBinaryOutputProtocol};
 use thrift::server::TProcessor;
@@ -45,7 +46,10 @@ impl<R: AsyncRead, W: AsyncWrite, P: TProcessor> Future for TAsyncProcessor<R, W
             match try_ready!(read_transport.poll()) {
                 ReadResult::Ok => (),
                 ReadResult::EOF => break, // EOF reached - client disconnected
-                ReadResult::TooLarge(_) => break, // Frame is too large (non-thrift framed input?) - disconnect client  // TODO: log error
+                ReadResult::TooLarge(size) => { // Frame is too large (non-thrift framed input?) - disconnect client
+                    eprintln!("Frame size {} too large (maximum: {})", size, self.max_frame_size);
+                    break
+                },
             }
 
             let read_cursor = read_transport.frame_cursor();
@@ -57,11 +61,12 @@ impl<R: AsyncRead, W: AsyncWrite, P: TProcessor> Future for TAsyncProcessor<R, W
                 let mut input_protocol = TBinaryInputProtocol::new(read_cursor, false);
                 let mut output_protocol = TBinaryOutputProtocol::new(write_cursor, false);
 
-                if let Err(e) = self
+                let process = self
                     .processor
-                    .process(&mut input_protocol, &mut output_protocol)
-                {
-                    println!("Error {:?}", e);
+                    .process(&mut input_protocol, &mut output_protocol);
+
+                if let Err(e) = process {
+                    eprintln!("Error processing thrift input - {:?}", e);
                 }
             }
 
@@ -90,21 +95,21 @@ impl<P: TProcessor + Send + Sync + 'static> TAsyncServer<P> {
         self
     }
 
-    pub fn listen(&mut self, address: &str) {
-        let address = address.parse::<SocketAddr>().unwrap(); // TODO: error
+    pub fn listen(&mut self, address: &str) -> Result<(), Error> {
+        let address = address.parse::<SocketAddr>()?;
 
         self.listen_address(address)
     }
 
-    pub fn listen_address(&mut self, address: SocketAddr) {
-        let socket = TcpListener::bind(&address).unwrap(); // TODO: error
+    pub fn listen_address(&mut self, address: SocketAddr) -> Result<(), Error> {
+        let socket = TcpListener::bind(&address)?;
 
         let processor = self.processor.clone();
         let max_frame_size = self.max_frame_size as usize;
 
         let server = socket
             .incoming()
-            .map_err(|err| println!("Socket Error: {:?}", err)) // TODO: error
+            .map_err(|err| eprintln!("Socket Error: {:?}", err))
             .for_each(move |socket| {
                 let (reader, writer) = socket.split();
                 let processor = processor.clone();
@@ -115,6 +120,8 @@ impl<P: TProcessor + Send + Sync + 'static> TAsyncServer<P> {
             });
 
         tokio::run(server);
+
+        Ok(())
 
         /*
         TODO: one day.

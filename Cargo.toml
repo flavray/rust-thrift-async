@@ -9,6 +9,7 @@ repository = "https://github.com/flavray/rust-thrift-async"
 edition = "2018"
 
 [dependencies]
+failure = "0.1"
 futures = "0.1"
 thrift = "0.0.4"
 tokio = "0.1"

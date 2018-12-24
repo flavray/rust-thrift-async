@@ -42,7 +42,7 @@ impl<'a, R: 'a + AsyncRead> Future for TAReadFramedTransport<'a, R> {
         let n = try_ready!(
             self.read
                 .poll_read(&mut frame_size_buffer)
-                .map_err(|e| println!("{:?}", e))
+                .map_err(|e| eprintln!("{:?}", e))
         );
 
         // EOF reached - client disconnected
@@ -53,7 +53,6 @@ impl<'a, R: 'a + AsyncRead> Future for TAReadFramedTransport<'a, R> {
         let frame_size = unsafe { transmute::<[u8; 4], u32>(frame_size_buffer) };
         let frame_size = u32::from_be(frame_size) as usize;
 
-        // TODO: maximum frame size check
         if frame_size > self.max_frame_size {
             return Ok(Async::Ready(ReadResult::TooLarge(frame_size)))
         }
@@ -62,7 +61,7 @@ impl<'a, R: 'a + AsyncRead> Future for TAReadFramedTransport<'a, R> {
 
         self.read
             .read_exact(&mut self.frame_buffer)
-            .map_err(|e| println!("{:?}", e))?;
+            .map_err(|e| eprintln!("{:?}", e))?;
 
         Ok(Async::Ready(ReadResult::Ok))
     }
@@ -118,7 +117,7 @@ impl<'a, W: 'a + AsyncWrite> Future for TAWriteFramedTransport<'a, W> {
 
         self.write
             .write_all(&self.frame_buffer)
-            .map_err(|e| println!("{:?}", e))?;
+            .map_err(|e| eprintln!("{:?}", e))?;
 
         Ok(Async::Ready(()))
     }
