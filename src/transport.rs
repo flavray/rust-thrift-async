@@ -31,6 +31,9 @@ impl<'a, R: AsyncRead> TAReadFramedTransport<'a, R> {
         Cursor::new(&self.frame_buffer)
     }
 
+    /// Build a new frame buffer if the current buffer exceeds `core_size` capacity.
+    /// This is useful in case a large buffer was needed once. To avoid keeping a large, unused
+    /// memory buffer allocated for the whole runtime of the application.
     pub fn core_resize(&mut self, core_size: usize) {
         if self.frame_buffer.capacity() > core_size {
             self.frame_buffer = Vec::new()
@@ -92,6 +95,9 @@ impl<'a, W: AsyncWrite> TAWriteFramedTransport<'a, W> {
         cursor
     }
 
+    /// Build a new frame buffer if the current buffer exceeds `core_size` capacity.
+    /// This is useful in case a large buffer was needed once. To avoid keeping a large, unused
+    /// memory buffer allocated for the whole runtime of the application.
     pub fn core_resize(&mut self, core_size: usize) {
         if self.frame_buffer.capacity() - 4 > core_size {
             self.frame_buffer = Vec::with_capacity(4)

@@ -1,3 +1,27 @@
+//! # thrift_async
+//!
+//! Half-asynchrounous, half-synchrounous implementation of an [Apache Thrift] server.
+//!
+//! This crate is fully compatible with the [`thrift`] crate.
+//!
+//! Example usage:
+//!
+//! ```rust
+//! use thrift_async::TAsyncServer;
+//!
+//! fn main() {
+//!     let processor = <some TProcessor>;
+//!
+//!     TAsyncServer::new(processor)
+//!         .listen("127.0.0.1:8080")
+//!         .unwrap() // panic on failure
+//! }
+//!
+//! ```
+//!
+//! [Apache Thrift]: https://thrift.apache.org/
+/// [`thrift`]: https://crates.io/crates/thrift
+
 mod transport;
 
 use std::net::SocketAddr;
@@ -108,6 +132,7 @@ impl<R: AsyncRead, W: AsyncWrite, P: TProcessor> Future for TAsyncProcessor<R, W
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct TAsyncServer<P: TProcessor + Send + Sync + 'static> {
     processor: Arc<P>,
     max_frame_size: u32,
@@ -117,6 +142,20 @@ pub struct TAsyncServer<P: TProcessor + Send + Sync + 'static> {
 }
 
 impl<P: TProcessor + Send + Sync + 'static> TAsyncServer<P> {
+    /// Create a new almost-asynchronous server, from a synchronous request `TProcessor`.
+    ///
+    /// Input/Output transports **must** be framed. Input/Output protocol **must** be binary.
+    ///
+    /// The server accepts incoming connections, keeping two frame buffers: for reading and writing
+    /// to the connection socket. All read/write operations happen asynchronously (leveraging
+    /// [`tokio`]).
+    /// Once a frame is fully read, processing happen synchronously within tokio's runtime.
+    ///
+    /// **NOTE** this crate is compatible with code generation from the [`thrift`] crate (fully
+    /// synchronous), hence the almost-asynchronous (or half async, half sync)  model.
+    ///
+    /// [`tokio`]: https://tokio.rs
+    /// [`thrift`]: https://crates.io/crates/thrift
     pub fn new(processor: P) -> TAsyncServer<P> {
         TAsyncServer {
             processor: Arc::new(processor),
@@ -127,32 +166,70 @@ impl<P: TProcessor + Send + Sync + 'static> TAsyncServer<P> {
         }
     }
 
+    /// The maximum read frame size allowed per client for this server.
+    ///
+    /// Non-framed messages can be interpreted as a huge frame size and can put a big hit on the
+    /// server memory footprint. Limiting the maximum frame size can prevent ill-formed data from
+    /// having too much effect.
+    ///
+    /// Default: 256 MB
     pub fn max_frame_size(&mut self, max_frame_size: u32) -> &mut Self {
         self.max_frame_size = max_frame_size;
         self
     }
 
+    /// The read frame size at which the server is happy to run with.
+    /// Frame buffer size can temporarily grow higher than this limit (but never higher than
+    /// `max_frame_size`), but the size will periodically be checked.
+    /// If the frame buffer size is higher than this limit during the check, the buffer will be
+    /// rebuilt, to reduce memory footprint.
+    ///
+    /// Default: 2 MB
     pub fn core_read_frame_size(&mut self, core_read_frame_size: u32) -> &mut Self {
         self.core_read_frame_size = core_read_frame_size;
         self
     }
 
+    /// The write frame size at which the server is happy to run with.
+    /// Frame buffer size can temporarily grow higher than this limit, but the size will
+    /// periodically be checked.
+    /// If the frame buffer size is higher than this limit during the check, the buffer will be
+    /// rebuilt, to reduce memory footprint.
+    ///
+    /// Default: 2 MB
     pub fn core_write_frame_size(&mut self, core_write_frame_size: u32) -> &mut Self {
         self.core_write_frame_size = core_write_frame_size;
         self
     }
 
+    /// The frequency at which frame buffers size will be checked against their core size.
+    ///
+    /// Frequency represents the number of frames processed per client connection.
+    ///
+    /// e.g: check every 512 received requests per client.
+    ///
+    /// Default: 512
     pub fn core_resize_frequency(&mut self, core_resize_frequency: u64) -> &mut Self {
         self.core_resize_frequency = core_resize_frequency;
         self
     }
 
+    /// Listen for incoming connections on `address`.
+    ///
+    /// `address` should be in the form `host:port`.
+    ///
+    /// e.g: `127.0.0.1:8080`.
+    ///
+    /// Returns an error if the address cannot be parsed, or cannot be bound.
     pub fn listen(&mut self, address: &str) -> Result<(), Error> {
         let address = address.parse::<SocketAddr>()?;
 
         self.listen_address(address)
     }
 
+    /// Listen for incoming connections on `address`.
+    ///
+    /// Returns an error if the address cannot not be bound.
     pub fn listen_address(&mut self, address: SocketAddr) -> Result<(), Error> {
         let socket = TcpListener::bind(&address)?;
 
