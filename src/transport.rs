@@ -1,6 +1,7 @@
 use std::io::Cursor;
 use std::mem::transmute;
 
+use futures::try_ready;
 use tokio::prelude::*;
 
 pub enum ReadResult {

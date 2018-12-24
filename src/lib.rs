@@ -1,13 +1,9 @@
-#[macro_use]
-extern crate futures;
-extern crate thrift;
-extern crate tokio;
-
 mod transport;
 
 use std::net::SocketAddr;
 use std::sync::Arc;
 
+use futures::try_ready;
 use thrift::protocol::{TBinaryInputProtocol, TBinaryOutputProtocol};
 use thrift::server::TProcessor;
 use tokio::net::TcpListener;
